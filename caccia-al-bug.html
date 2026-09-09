@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CACCIA AL BUG</title>
+<style>
+  :root {
+    --phosphor: #39ff6a;
+    --phosphor-dim: #145c28;
+    --phosphor-dark: #0a2e14;
+    --bezel: #1c1c1c;
+    --bezel-light: #2e2e2e;
+    --screen-bg: #020a03;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    font-family: 'Courier New', 'Lucida Console', monospace;
+  }
+
+  .cabinet {
+    width: 100%;
+    max-width: 620px;
+    background: linear-gradient(180deg, var(--bezel-light), var(--bezel));
+    border-radius: 22px;
+    padding: 22px 22px 30px 22px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7), inset 0 0 0 2px #000;
+  }
+
+  .marquee {
+    text-align: center;
+    color: var(--phosphor);
+    font-size: 13px;
+    letter-spacing: 4px;
+    font-weight: bold;
+    margin-bottom: 14px;
+    text-shadow: 0 0 8px var(--phosphor);
+  }
+
+  .screen {
+    position: relative;
+    background: var(--screen-bg);
+    border-radius: 10px;
+    padding: 24px 22px;
+    min-height: 340px;
+    overflow: hidden;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.9), inset 0 0 60px rgba(57,255,106,0.05);
+  }
+
+  .screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(57,255,106,0.05) 0px,
+      rgba(57,255,106,0.05) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .layer {
+    position: relative;
+    z-index: 1;
+    color: var(--phosphor);
+    text-shadow: 0 0 6px rgba(57,255,106,0.6);
+  }
+
+  /* ---- Title screen ---- */
+  #titleScreen {
+    text-align: center;
+    padding-top: 30px;
+  }
+
+  #titleScreen h1 {
+    font-size: 26px;
+    letter-spacing: 3px;
+    margin: 0 0 6px 0;
+  }
+
+  #titleScreen .bug-icon {
+    font-size: 40px;
+    margin: 18px 0;
+  }
+
+  #titleScreen .subtitle {
+    font-size: 12px;
+    color: var(--phosphor-dim);
+    letter-spacing: 1px;
+    margin-bottom: 26px;
+  }
+
+  .blink {
+    animation: blink 1s steps(1) infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #titleScreen .rules {
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--phosphor-dim);
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  /* ---- HUD ---- */
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    letter-spacing: 1px;
+    border-bottom: 1px dashed var(--phosphor-dim);
+    padding-bottom: 10px;
+    margin-bottom: 22px;
+  }
+
+  .hud .lives span {
+    letter-spacing: 3px;
+  }
+
+  /* ---- Lanes ---- */
+  .lanes {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+
+  .lane {
+    flex: 1;
+    aspect-ratio: 1;
+    background: transparent;
+    border: 2px solid var(--phosphor-dim);
+    border-radius: 6px;
+    color: var(--phosphor);
+    font-family: inherit;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: background 0.1s ease, transform 0.1s ease;
+  }
+
+  .lane:hover:not(:disabled) {
+    background: rgba(57,255,106,0.08);
+  }
+
+  .lane:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+
+  .lane:focus-visible {
+    outline: 2px solid var(--phosphor);
+    outline-offset: 3px;
+  }
+
+  .lane:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  .lane.hit {
+    background: var(--phosphor);
+    color: #020a03;
+    border-color: var(--phosphor);
+  }
+
+  .lane.miss {
+    border-color: #ff3b3b;
+  }
+
+  .lane .bug {
+    font-size: 26px;
+  }
+
+  #message {
+    min-height: 44px;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  #startBtn, #restartBtn {
+    display: block;
+    margin: 0 auto;
+    background: none;
+    border: 1px solid var(--phosphor-dim);
+    color: var(--phosphor);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 1px;
+    padding: 10px 22px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  #startBtn:hover, #restartBtn:hover {
+    background: var(--phosphor);
+    color: #020a03;
+  }
+
+  #startBtn:focus-visible, #restartBtn:focus-visible {
+    outline: 2px solid var(--phosphor);
+    outline-offset: 3px;
+  }
+
+  /* ---- Game over screen ---- */
+  #gameOverScreen {
+    text-align: center;
+    padding-top: 50px;
+  }
+
+  #gameOverScreen h2 {
+    font-size: 22px;
+    letter-spacing: 2px;
+    margin-bottom: 18px;
+  }
+
+  #gameOverScreen .score-line {
+    font-size: 14px;
+    margin-bottom: 30px;
+    color: var(--phosphor-dim);
+  }
+
+  .hidden { display: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .blink { animation: none; }
+  }
+
+  footer.credit {
+    text-align: center;
+    color: #444;
+    font-size: 11px;
+    margin-top: 14px;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="cabinet">
+    <div class="marquee">★ CACCIA AL BUG ★</div>
+    <div class="screen">
+
+      <div class="layer" id="titleScreen">
+        <h1>CACCIA AL BUG</h1>
+        <div class="bug-icon">🐞</div>
+        <div class="subtitle">MAINFRAME ARCADE SYSTEM &mdash; 1982</div>
+        <div class="rules">
+          UN BUG SI NASCONDE IN UNA DELLE 5 TANE.<br>
+          INDOVINA LA TANA E SCHIACCIALO PRIMA<br>
+          CHE FINISCANO LE TUE 3 VITE.
+        </div>
+        <br>
+        <button id="startBtn" type="button" class="blink">PREMI PER INIZIARE</button>
+      </div>
+
+      <div class="layer hidden" id="gameScreen">
+        <div class="hud">
+          <span>PUNTI: <span id="scoreVal">0</span></span>
+          <span>ROUND: <span id="roundVal">0</span></span>
+          <span class="lives">VITE: <span id="livesVal">●●●</span></span>
+        </div>
+        <div class="lanes" id="lanes"></div>
+        <div id="message">Scegli una tana...</div>
+      </div>
+
+      <div class="layer hidden" id="gameOverScreen">
+        <h2 id="gameOverTitle">GAME OVER</h2>
+        <div class="score-line">
+          PUNTEGGIO FINALE: <span id="finalScore">0</span><br>
+          ROUND GIOCATI: <span id="finalRounds">0</span>
+        </div>
+        <button id="restartBtn" type="button">RIGIOCA</button>
+      </div>
+
+    </div>
+  </div>
+  <footer class="credit">porting HTML dell'originale COBOL &mdash; nessun bug reale e' stato schiacciato</footer>
+</div>
+
+<script>
+  const titleScreen = document.getElementById('titleScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const lanesEl = document.getElementById('lanes');
+  const scoreVal = document.getElementById('scoreVal');
+  const roundVal = document.getElementById('roundVal');
+  const livesVal = document.getElementById('livesVal');
+  const message = document.getElementById('message');
+  const finalScore = document.getElementById('finalScore');
+  const finalRounds = document.getElementById('finalRounds');
+  const gameOverTitle = document.getElementById('gameOverTitle');
+
+  let score = 0;
+  let lives = 3;
+  let round = 0;
+  let bugLane = 0;
+  let locked = false;
+
+  function buildLanes() {
+    lanesEl.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'lane';
+      btn.type = 'button';
+      btn.dataset.lane = i;
+      btn.textContent = i;
+      btn.addEventListener('click', () => guess(i, btn));
+      lanesEl.appendChild(btn);
+    }
+  }
+
+  function updateHud() {
+    scoreVal.textContent = score;
+    roundVal.textContent = round;
+    livesVal.textContent = '●'.repeat(lives) + '○'.repeat(3 - lives);
+  }
+
+  function newRound() {
+    round++;
+    bugLane = Math.floor(Math.random() * 5) + 1;
+    locked = false;
+    message.textContent = 'Scegli una tana...';
+    lanesEl.querySelectorAll('.lane').forEach(l => {
+      l.disabled = false;
+      l.classList.remove('hit', 'miss');
+      l.textContent = l.dataset.lane;
+    });
+    updateHud();
+  }
+
+  function guess(i, btn) {
+    if (locked) return;
+    locked = true;
+
+    lanesEl.querySelectorAll('.lane').forEach(l => l.disabled = true);
+
+    const bugBtn = lanesEl.querySelector(`[data-lane="${bugLane}"]`);
+    bugBtn.textContent = '🐞';
+
+    if (i === bugLane) {
+      score += 10;
+      btn.classList.add('hit');
+      message.textContent = `SCHIACCIATO! Il bug era nella tana ${bugLane}. +10 punti!`;
+    } else {
+      lives--;
+      btn.classList.add('miss');
+      message.textContent = `MANCATO! Il bug era nella tana ${bugLane}. -1 vita.`;
+    }
+
+    updateHud();
+
+    setTimeout(() => {
+      if (lives <= 0) {
+        endGame(false);
+      } else {
+        newRound();
+      }
+    }, 1100);
+  }
+
+  function endGame(quit) {
+    gameScreen.classList.add('hidden');
+    gameOverScreen.classList.remove('hidden');
+    gameOverTitle.textContent = quit ? 'HAI ABBANDONATO LA CACCIA' : 'GAME OVER — IL BUG HA VINTO';
+    finalScore.textContent = score;
+    finalRounds.textContent = round;
+  }
+
+  function startGame() {
+    score = 0;
+    lives = 3;
+    round = 0;
+    titleScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    buildLanes();
+    newRound();
+  }
+
+  startBtn.addEventListener('click', startGame);
+  restartBtn.addEventListener('click', startGame);
+
+  document.addEventListener('keydown', (e) => {
+    if (!titleScreen.classList.contains('hidden') && e.key === 'Enter') {
+      startGame();
+    }
+    if (!gameScreen.classList.contains('hidden') && ['1','2','3','4','5'].includes(e.key)) {
+      const btn = lanesEl.querySelector(`[data-lane="${e.key}"]`);
+      if (btn && !btn.disabled) guess(Number(e.key), btn);
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAZZO MATEMATICO</title>
+<style>
+  :root {
+    --phosphor: #39ff6a;
+    --phosphor-dim: #145c28;
+    --bezel: #1c1c1c;
+    --bezel-light: #2e2e2e;
+    --screen-bg: #020a03;
+    --danger: #ff4d4d;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    font-family: 'Courier New', 'Lucida Console', monospace;
+  }
+
+  .cabinet {
+    width: 100%;
+    max-width: 640px;
+    background: linear-gradient(180deg, var(--bezel-light), var(--bezel));
+    border-radius: 22px;
+    padding: 22px 22px 30px 22px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7), inset 0 0 0 2px #000;
+  }
+
+  .marquee {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--phosphor);
+    font-size: 13px;
+    letter-spacing: 3px;
+    font-weight: bold;
+    margin-bottom: 14px;
+    text-shadow: 0 0 8px var(--phosphor);
+  }
+
+  #muteBtn {
+    background: none;
+    border: 1px solid var(--phosphor-dim);
+    color: var(--phosphor);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    letter-spacing: 0;
+  }
+
+  .screen {
+    position: relative;
+    background: var(--screen-bg);
+    border-radius: 10px;
+    padding: 22px 22px;
+    min-height: 400px;
+    overflow: hidden;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.9), inset 0 0 60px rgba(57,255,106,0.05);
+  }
+
+  .screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(57,255,106,0.05) 0px,
+      rgba(57,255,106,0.05) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .layer {
+    position: relative;
+    z-index: 1;
+    color: var(--phosphor);
+    text-shadow: 0 0 6px rgba(57,255,106,0.6);
+  }
+
+  .hidden { display: none !important; }
+
+  /* ---- Title ---- */
+  #titleScreen { text-align: center; padding-top: 26px; }
+  #titleScreen h1 { font-size: 22px; letter-spacing: 2px; margin: 0 0 6px 0; }
+  #titleScreen .rocket-icon { font-size: 40px; margin: 16px 0; }
+  #titleScreen .subtitle { font-size: 12px; color: var(--phosphor-dim); letter-spacing: 1px; margin-bottom: 22px; }
+  #titleScreen .rules { font-size: 11px; line-height: 1.8; color: var(--phosphor-dim); max-width: 340px; margin: 0 auto; }
+
+  .blink { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  button#startBtn, button#restartBtn {
+    display: block;
+    margin: 20px auto 0 auto;
+    background: none;
+    border: 1px solid var(--phosphor-dim);
+    color: var(--phosphor);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 1px;
+    padding: 10px 22px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  button#startBtn:hover, button#restartBtn:hover { background: var(--phosphor); color: #020a03; }
+  button#startBtn:focus-visible, button#restartBtn:focus-visible { outline: 2px solid var(--phosphor); outline-offset: 3px; }
+
+  /* ---- Game ---- */
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    letter-spacing: 1px;
+    border-bottom: 1px dashed var(--phosphor-dim);
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+  }
+
+  .game-body {
+    display: flex;
+    gap: 18px;
+  }
+
+  .track {
+    width: 44px;
+    background: linear-gradient(to bottom, #020a03, #051505);
+    border: 1px solid var(--phosphor-dim);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .track .moon {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 16px;
+  }
+
+  .track .rocket {
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    transform: translate(-50%, 0);
+    font-size: 20px;
+    transition: bottom 0.6s ease;
+  }
+
+  .main-panel { flex: 1; display: flex; flex-direction: column; }
+
+  .fuel-bar-wrap {
+    margin-bottom: 16px;
+  }
+
+  .fuel-label {
+    font-size: 10px;
+    color: var(--phosphor-dim);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .fuel-bar-bg {
+    height: 10px;
+    background: #061006;
+    border: 1px solid var(--phosphor-dim);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .fuel-bar-fill {
+    height: 100%;
+    background: var(--phosphor);
+    width: 100%;
+    transition: width 0.4s ease, background 0.4s ease;
+  }
+
+  .problem {
+    font-size: 26px;
+    text-align: center;
+    letter-spacing: 2px;
+    margin: 10px 0 18px 0;
+    min-height: 34px;
+  }
+
+  .answer-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+
+  input#answerInput {
+    width: 110px;
+    background: transparent;
+    border: 1px solid var(--phosphor-dim);
+    border-radius: 3px;
+    color: var(--phosphor);
+    font-family: inherit;
+    font-size: 18px;
+    text-align: center;
+    padding: 6px 4px;
+    outline: none;
+  }
+
+  input#answerInput:focus-visible {
+    outline: 2px solid var(--phosphor);
+    outline-offset: 2px;
+  }
+
+  button#submitBtn {
+    background: none;
+    border: 1px solid var(--phosphor-dim);
+    color: var(--phosphor);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 1px;
+    padding: 8px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  button#submitBtn:hover { background: var(--phosphor); color: #020a03; }
+  button#submitBtn:focus-visible { outline: 2px solid var(--phosphor); outline-offset: 2px; }
+
+  #message {
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 40px;
+  }
+
+  /* ---- Game over ---- */
+  #gameOverScreen { text-align: center; padding-top: 46px; }
+  #gameOverScreen h2 { font-size: 20px; letter-spacing: 2px; margin-bottom: 16px; }
+  #gameOverScreen .score-line { font-size: 13px; margin-bottom: 26px; color: var(--phosphor-dim); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .blink { animation: none; }
+    .track .rocket { transition: none; }
+  }
+
+  footer.credit {
+    text-align: center;
+    color: #444;
+    font-size: 11px;
+    margin-top: 14px;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="cabinet">
+    <div class="marquee">
+      <span>★ RAZZO MATEMATICO ★</span>
+      <button id="muteBtn" type="button">SUONO: ON</button>
+    </div>
+
+    <div class="screen">
+
+      <div class="layer" id="titleScreen">
+        <h1>RAZZO MATEMATICO</h1>
+        <div class="rocket-icon">🚀</div>
+        <div class="subtitle">MISSIONE LUNA &mdash; MAINFRAME 1975</div>
+        <div class="rules">
+          RISOLVI I CALCOLI PER FAR SALIRE IL RAZZO.<br>
+          OGNI RISPOSTA GIUSTA = +200m DI ALTITUDINE.<br>
+          OGNI ERRORE BRUCIA CARBURANTE.<br>
+          RAGGIUNGI 5000m PRIMA CHE FINISCA IL CARBURANTE!
+        </div>
+        <button id="startBtn" type="button" class="blink">PREMI PER INIZIARE</button>
+      </div>
+
+      <div class="layer hidden" id="gameScreen">
+        <div class="hud">
+          <span>PUNTI: <span id="scoreVal">0</span></span>
+          <span>ROUND: <span id="roundVal">0</span></span>
+          <span>ALTITUDINE: <span id="altVal">0</span>m</span>
+        </div>
+
+        <div class="game-body">
+          <div class="track">
+            <span class="moon">🌕</span>
+            <span class="rocket" id="rocketIcon" style="bottom: 6px;">🚀</span>
+          </div>
+
+          <div class="main-panel">
+            <div class="fuel-bar-wrap">
+              <div class="fuel-label">CARBURANTE</div>
+              <div class="fuel-bar-bg"><div class="fuel-bar-fill" id="fuelBar"></div></div>
+            </div>
+
+            <div class="problem" id="problem">? + ? = ?</div>
+
+            <div class="answer-row">
+              <input type="number" id="answerInput" inputmode="numeric" autocomplete="off">
+              <button id="submitBtn" type="button">LANCIA</button>
+            </div>
+
+            <div id="message">Risolvi il calcolo e premi LANCIA.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="layer hidden" id="gameOverScreen">
+        <h2 id="gameOverTitle">GAME OVER</h2>
+        <div class="score-line">
+          PUNTEGGIO FINALE: <span id="finalScore">0</span><br>
+          ROUND GIOCATI: <span id="finalRounds">0</span><br>
+          ALTITUDINE RAGGIUNTA: <span id="finalAlt">0</span>m
+        </div>
+        <button id="restartBtn" type="button">RIGIOCA</button>
+      </div>
+
+    </div>
+  </div>
+  <footer class="credit">porting HTML dell'originale COBOL &mdash; audio sintetizzato, nessun campione esterno</footer>
+</div>
+
+<script>
+  /* ---------- Suoni retro sintetizzati (Web Audio, nessun file esterno) ---------- */
+  let audioCtx = null;
+  let soundOn = true;
+
+  function getCtx() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function beep(freq, duration, type = 'square', startDelay = 0, volume = 0.15) {
+    if (!soundOn) return;
+    const ctx = getCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.value = volume;
+    gain.gain.setValueAtTime(volume, ctx.currentTime + startDelay);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startDelay + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(ctx.currentTime + startDelay);
+    osc.stop(ctx.currentTime + startDelay + duration);
+  }
+
+  function sfxCorrect() {
+    // arpeggio ascendente stile "power-up"
+    beep(392, 0.09, 'square', 0);
+    beep(523, 0.09, 'square', 0.09);
+    beep(659, 0.13, 'square', 0.18);
+  }
+
+  function sfxWrong() {
+    // ronzio discendente
+    beep(180, 0.18, 'sawtooth', 0, 0.12);
+    beep(120, 0.22, 'sawtooth', 0.1, 0.12);
+  }
+
+  function sfxWin() {
+    beep(523, 0.12, 'square', 0);
+    beep(659, 0.12, 'square', 0.12);
+    beep(784, 0.12, 'square', 0.24);
+    beep(1047, 0.35, 'square', 0.36);
+  }
+
+  function sfxCrash() {
+    beep(200, 0.25, 'sawtooth', 0, 0.15);
+    beep(140, 0.3, 'sawtooth', 0.18, 0.15);
+    beep(80, 0.4, 'sawtooth', 0.4, 0.15);
+  }
+
+  function sfxClick() {
+    beep(300, 0.05, 'square', 0, 0.08);
+  }
+
+  /* ---------- Elementi DOM ---------- */
+  const titleScreen = document.getElementById('titleScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  const answerInput = document.getElementById('answerInput');
+  const muteBtn = document.getElementById('muteBtn');
+
+  const scoreVal = document.getElementById('scoreVal');
+  const roundVal = document.getElementById('roundVal');
+  const altVal = document.getElementById('altVal');
+  const fuelBar = document.getElementById('fuelBar');
+  const problem = document.getElementById('problem');
+  const message = document.getElementById('message');
+  const rocketIcon = document.getElementById('rocketIcon');
+
+  const finalScore = document.getElementById('finalScore');
+  const finalRounds = document.getElementById('finalRounds');
+  const finalAlt = document.getElementById('finalAlt');
+  const gameOverTitle = document.getElementById('gameOverTitle');
+
+  const TARGET_ALT = 5000;
+  let score = 0, fuel = 100, alt = 0, round = 0, current = null, locked = false;
+
+  function newProblem() {
+    const a = Math.floor(Math.random() * 20) + 1;
+    const b = Math.floor(Math.random() * 20) + 1;
+    const ops = ['+', '-', '×'];
+    const op = ops[Math.floor(Math.random() * ops.length)];
+    let correct;
+    if (op === '+') correct = a + b;
+    else if (op === '-') correct = a - b;
+    else correct = a * b;
+    current = { a, b, op, correct };
+    problem.textContent = `${a} ${op} ${b} = ?`;
+  }
+
+  function updateHud() {
+    scoreVal.textContent = score;
+    roundVal.textContent = round;
+    altVal.textContent = alt;
+    fuelBar.style.width = fuel + '%';
+    fuelBar.style.background = fuel <= 30 ? 'var(--danger)' : 'var(--phosphor)';
+    const pct = Math.min(alt / TARGET_ALT, 1);
+    rocketIcon.style.bottom = `calc(6px + ${pct * 78}%)`;
+  }
+
+  function submitAnswer() {
+    if (locked) return;
+    const val = answerInput.value.trim();
+    if (val === '') { answerInput.focus(); return; }
+
+    locked = true;
+    round++;
+    const answer = parseInt(val, 10);
+
+    if (answer === current.correct) {
+      score += 10;
+      alt += 200;
+      sfxCorrect();
+      message.textContent = `ESATTO! RAZZO IN SALITA! +200m`;
+    } else {
+      fuel = Math.max(fuel - 25, 0);
+      sfxWrong();
+      message.textContent = `SBAGLIATO! ERA ${current.correct}. CARBURANTE IN CALO.`;
+    }
+
+    updateHud();
+    answerInput.value = '';
+    submitBtn.disabled = true;
+    answerInput.disabled = true;
+
+    setTimeout(() => {
+      if (alt >= TARGET_ALT) {
+        sfxWin();
+        endGame('win');
+      } else if (fuel <= 0) {
+        sfxCrash();
+        endGame('crash');
+      } else {
+        locked = false;
+        submitBtn.disabled = false;
+        answerInput.disabled = false;
+        newProblem();
+        message.textContent = 'Risolvi il calcolo e premi LANCIA.';
+        answerInput.focus();
+      }
+    }, 1200);
+  }
+
+  function endGame(reason) {
+    gameScreen.classList.add('hidden');
+    gameOverScreen.classList.remove('hidden');
+    if (reason === 'win') gameOverTitle.textContent = 'SEI ARRIVATO SULLA LUNA!';
+    else if (reason === 'crash') gameOverTitle.textContent = 'CARBURANTE ESAURITO — PRECIPITATO';
+    else gameOverTitle.textContent = 'MISSIONE ABBANDONATA';
+    finalScore.textContent = score;
+    finalRounds.textContent = round;
+    finalAlt.textContent = alt;
+  }
+
+  function startGame() {
+    score = 0; fuel = 100; alt = 0; round = 0; locked = false;
+    titleScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    submitBtn.disabled = false;
+    answerInput.disabled = false;
+    newProblem();
+    updateHud();
+    message.textContent = 'Risolvi il calcolo e premi LANCIA.';
+    answerInput.focus();
+  }
+
+  startBtn.addEventListener('click', () => { getCtx(); sfxClick(); startGame(); });
+  restartBtn.addEventListener('click', () => { sfxClick(); startGame(); });
+  submitBtn.addEventListener('click', submitAnswer);
+  answerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitAnswer(); });
+
+  muteBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    muteBtn.textContent = 'SUONO: ' + (soundOn ? 'ON' : 'OFF');
+  });
+</script>
+
+</body>
+</html>
