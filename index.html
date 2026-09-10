@@ -1,548 +1,320 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ATTRAVERSA IL BUS</title>
-<style>
-  :root {
-    --phosphor: #39ff6a;
-    --phosphor-dim: #145c28;
-    --danger: #ff4d4d;
-    --amber: #ffb000;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUELCOBOL 1982</title>
+    <!-- Importazione del font Pixel Art da Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        /* STILE MONITORE A FOSFORI VERDI */
+        body {
+            background-color: #030803;
+            color: #33ff33;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            overflow-x: hidden;
+            text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+        }
 
-  html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    background: #000;
-    overflow: hidden;
-    font-family: 'Courier New', 'Lucida Console', monospace;
-    color: var(--phosphor);
-  }
+        /* EFFETTO SCANLINE CRT */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.45) 50%);
+            background-size: 100% 4px;
+            z-index: 2;
+            pointer-events: none;
+        }
 
-  #gameCanvas {
-    position: fixed;
-    inset: 0;
-    display: block;
-    background: #010401;
-  }
+        .terminal {
+            width: 100%;
+            max-width: 800px;
+            border: 3px solid #33ff33;
+            padding: 25px;
+            box-shadow: 0 0 25px rgba(51, 255, 51, 0.35);
+            background-color: #000c00;
+            position: relative;
+            z-index: 1;
+        }
 
-  /* CRT overlay */
-  #crtOverlay {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 5;
-    background: repeating-linear-gradient(
-      to bottom,
-      rgba(57,255,106,0.05) 0px,
-      rgba(57,255,106,0.05) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-  }
-  #crtOverlay::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.55) 100%);
-  }
+        /* LOGO CRUELCOBOL ENORME E PIXELLATO */
+        .pixel-logo {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 38px;
+            color: #33ff33;
+            text-align: center;
+            margin: 10px 0 30px 0;
+            letter-spacing: 3px;
+            line-height: 1.2;
+            word-wrap: break-word;
+            text-shadow: 
+                4px 4px 0px #004400,
+                0 0 12px #33ff33,
+                0 0 25px #33ff33,
+                0 0 40px rgba(51, 255, 51, 0.5);
+            animation: zoomIn 0.8s ease-out, glitchFlicker 3s infinite;
+        }
 
-  /* HUD */
-  #hud {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 4;
-    display: flex;
-    justify-content: space-between;
-    padding: 14px 20px;
-    font-size: clamp(11px, 2vw, 15px);
-    letter-spacing: 1px;
-    text-shadow: 0 0 6px rgba(57,255,106,0.6);
-  }
+        /* MEDIA QUERY PER SCHERMI PICCOLI */
+        @media (max-width: 600px) {
+            .pixel-logo {
+                font-size: 24px;
+                letter-spacing: 1px;
+            }
+        }
 
-  #hud .lives span { letter-spacing: 3px; }
+        /* ANIMAZIONE GLITCH/SFARFALLIO RETRO */
+        @keyframes glitchFlicker {
+            0%, 100% { opacity: 1; transform: skew(0deg); }
+            92% { opacity: 1; transform: skew(0deg); }
+            93% { opacity: 0.3; transform: skew(4deg); }
+            94% { opacity: 1; transform: skew(-3deg); }
+            96% { opacity: 0.8; text-shadow: -3px 0 #33ff33, 3px 0 #005500; }
+            97% { opacity: 1; text-shadow: 0 0 15px #33ff33; }
+        }
 
-  #muteBtn {
-    position: fixed;
-    top: 12px;
-    right: 14px;
-    z-index: 6;
-    background: none;
-    border: 1px solid var(--phosphor-dim);
-    color: var(--phosphor);
-    font-family: inherit;
-    font-size: 11px;
-    padding: 5px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-  }
-  #muteBtn:hover { background: var(--phosphor); color: #010401; }
+        /* ANIMAZIONE ZOOM AVVIO LOGO */
+        @keyframes zoomIn {
+            0% { transform: scale(0.1); opacity: 0; }
+            80% { transform: scale(1.08); opacity: 1; }
+            100% { transform: scale(1); }
+        }
 
-  /* Overlays (title / gameover) */
-  .overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 7;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    background: rgba(1,4,1,0.85);
-    padding: 20px;
-  }
+        .header {
+            border-bottom: 1px dashed #33ff33;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
 
-  .overlay.hidden { display: none; }
+        .code-block {
+            color: #22aa22;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
 
-  .overlay h1 {
-    font-size: clamp(24px, 6vw, 46px);
-    letter-spacing: 3px;
-    margin: 0 0 10px 0;
-    text-shadow: 0 0 12px var(--phosphor);
-  }
+        .log {
+            height: 140px;
+            overflow-y: auto;
+            border: 1px solid #116611;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #000500;
+        }
 
-  .overlay .icon { font-size: clamp(32px, 8vw, 60px); margin: 10px 0; }
+        .input-area {
+            display: flex;
+            align-items: center;
+        }
 
-  .overlay .subtitle {
-    font-size: clamp(11px, 2vw, 14px);
-    color: var(--phosphor-dim);
-    letter-spacing: 1px;
-    margin-bottom: 20px;
-  }
+        .prompt {
+            margin-right: 10px;
+            font-weight: bold;
+        }
 
-  .overlay .rules {
-    font-size: clamp(11px, 1.8vw, 13px);
-    line-height: 1.9;
-    color: var(--phosphor-dim);
-    max-width: 420px;
-    margin-bottom: 10px;
-  }
+        input[type="text"] {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid #33ff33;
+            color: #33ff33;
+            font-family: inherit;
+            font-size: 18px;
+            outline: none;
+            width: 100%;
+            text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+        }
 
-  .blink { animation: blink 1s steps(1) infinite; }
-  @keyframes blink { 50% { opacity: 0; } }
+        .btn {
+            background-color: #33ff33;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            cursor: pointer;
+            margin-top: 12px;
+            box-shadow: 0 0 10px #33ff33;
+        }
 
-  .overlay button {
-    margin-top: 22px;
-    background: none;
-    border: 1px solid var(--phosphor-dim);
-    color: var(--phosphor);
-    font-family: inherit;
-    font-size: clamp(12px, 2vw, 14px);
-    letter-spacing: 1px;
-    padding: 10px 24px;
-    border-radius: 3px;
-    cursor: pointer;
-  }
-  .overlay button:hover { background: var(--phosphor); color: #010401; }
+        .btn:hover {
+            background-color: #66ff66;
+            box-shadow: 0 0 18px #33ff33;
+        }
 
-  .score-line {
-    font-size: clamp(12px, 2vw, 15px);
-    color: var(--phosphor-dim);
-    margin-top: 8px;
-    line-height: 1.8;
-  }
-
-  /* Touch controls */
-  #touchControls {
-    position: fixed;
-    bottom: 18px;
-    right: 18px;
-    z-index: 6;
-    display: grid;
-    grid-template-columns: repeat(3, 46px);
-    grid-template-rows: repeat(3, 46px);
-    gap: 4px;
-    opacity: 0.55;
-  }
-  #touchControls button {
-    background: rgba(57,255,106,0.08);
-    border: 1px solid var(--phosphor-dim);
-    color: var(--phosphor);
-    border-radius: 4px;
-    font-size: 16px;
-    touch-action: none;
-    user-select: none;
-  }
-  #btnUp { grid-column: 2; grid-row: 1; }
-  #btnLeft { grid-column: 1; grid-row: 2; }
-  #btnRight { grid-column: 3; grid-row: 2; }
-  #btnDown { grid-column: 2; grid-row: 3; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .blink { animation: none; }
-  }
-</style>
+        /* PIÈ DI PAGINA BRUNO */
+        .footer {
+            margin-top: 20px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 11px;
+            color: #22aa22;
+            text-align: center;
+            z-index: 1;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+    </style>
 </head>
 <body>
 
-<canvas id="gameCanvas"></canvas>
-<div id="crtOverlay"></div>
+<div class="terminal">
+    <!-- LOGO GRANDE PIXELLATO -->
+    <div class="pixel-logo">CRUELCOBOL</div>
 
-<div id="hud" class="hidden">
-  <span>PUNTI: <span id="scoreVal">0</span></span>
-  <span>LIVELLO: <span id="levelVal">1</span></span>
-  <span class="lives">VITE: <span id="livesVal">●●●</span></span>
+    <div class="header">
+        IDENTIFICATION DIVISION.<br>
+        PROGRAM-ID. MAINFRAME-CRUELCOBOL.<br>
+        SYSTEM. IBM-370 MONOCHROME CRT.<br>
+        -------------------------------------------
+    </div>
+
+    <div class="code-block">
+        PROCEDURE DIVISION.<br>
+        &nbsp;&nbsp;001-DEC-SYSTEM.<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;PERFORM UNTIL CODE-MATCH OR ATTEMPTS = 0<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;ACCEPT USER-KEY FROM KEYBOARD.
+    </div>
+
+    <div id="status">TENTATIVI RIMASTI: <span id="attempts">6</span> | SISTEMA: BLOCCATO</div>
+
+    <div class="log" id="terminal-log">
+        SYS_INIT: CRUELCOBOL avviato.<br>
+        SYS_WARN: Trova la chiave di bypass a 2 cifre (10-99).<br>
+    </div>
+
+    <div class="input-area">
+        <span class="prompt">INPUT &gt;</span>
+        <input type="text" id="user-input" maxlength="2" autofocus autocomplete="off">
+    </div>
+
+    <button class="btn" onclick="startGame()" id="start-btn" style="display:none;">RIAVVIA SYSTEM</button>
 </div>
 
-<button id="muteBtn" type="button">SUONO: ON</button>
-
-<div id="touchControls" class="hidden">
-  <button id="btnUp" type="button">▲</button>
-  <button id="btnLeft" type="button">◀</button>
-  <button id="btnRight" type="button">▶</button>
-  <button id="btnDown" type="button">▼</button>
-</div>
-
-<div class="overlay" id="titleScreen">
-  <h1>ATTRAVERSA IL BUS</h1>
-  <div class="icon">🚌💾🐛</div>
-  <div class="subtitle">DATA CROSSING SYSTEM &mdash; MAINFRAME ARCADE 1981</div>
-  <div class="rules">
-    GUIDA IL PACCHETTO DATI ATTRAVERSO LE CORSIE<br>
-    PIENE DI BUG FINO ALL'OUTPUT IN CIMA.<br>
-    FRECCE O WASD PER MUOVERTI. EVITA I BUG!<br>
-    OGNI LIVELLO I BUG SI MUOVONO PIU' VELOCI.
-  </div>
-  <button id="startBtn" type="button" class="blink">PREMI PER INIZIARE</button>
-</div>
-
-<div class="overlay hidden" id="gameOverScreen">
-  <h1 id="gameOverTitle">GAME OVER</h1>
-  <div class="score-line">
-    PUNTEGGIO FINALE: <span id="finalScore">0</span><br>
-    LIVELLO RAGGIUNTO: <span id="finalLevel">1</span>
-  </div>
-  <button id="restartBtn" type="button">RIGIOCA</button>
+<!-- CREDITI A PIÈ DI PAGINA -->
+<div class="footer">
+    [ SYSTEM DEVELOPED BY BRUNO ]
 </div>
 
 <script>
-/* ================= AUDIO (sintetizzato, nessun file esterno) ================= */
-let audioCtx = null;
-let soundOn = true;
+    let secretCode;
+    let attemptsLeft;
+    let gameOver = false;
 
-function getCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  return audioCtx;
-}
+    // WEB AUDIO API - SUONI SINTETICI RETRO 8-BIT
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-function beep(freq, duration, type = 'square', startDelay = 0, volume = 0.12) {
-  if (!soundOn) return;
-  const ctx = getCtx();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = type;
-  osc.frequency.value = freq;
-  gain.gain.setValueAtTime(volume, ctx.currentTime + startDelay);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startDelay + duration);
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start(ctx.currentTime + startDelay);
-  osc.stop(ctx.currentTime + startDelay + duration);
-}
-
-const sfxHop = () => beep(520, 0.05, 'square', 0, 0.09);
-const sfxCrash = () => { beep(160, 0.18, 'sawtooth', 0, 0.15); beep(90, 0.25, 'sawtooth', 0.12, 0.15); };
-const sfxLevelUp = () => { beep(523, 0.09, 'square', 0); beep(659, 0.09, 'square', 0.09); beep(784, 0.16, 'square', 0.18); };
-const sfxGameOver = () => { beep(200, 0.25, 'sawtooth', 0, 0.15); beep(140, 0.3, 'sawtooth', 0.2, 0.15); beep(80, 0.45, 'sawtooth', 0.45, 0.15); };
-const sfxClick = () => beep(300, 0.05, 'square', 0, 0.08);
-
-/* ================= CANVAS SETUP ================= */
-const canvas = document.getElementById('gameCanvas');
-const ctx2d = canvas.getContext('2d');
-let W = 0, H = 0;
-
-function resize() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
-  computeGeometry();
-}
-window.addEventListener('resize', resize);
-
-/* ================= GAME CONSTANTS ================= */
-const NUM_LANES = 7; // 0 = start (bottom), 6 = goal (top)
-let laneH = 0;
-
-function computeGeometry() {
-  laneH = H / NUM_LANES;
-}
-
-const LANE_COLORS = ['#0a1d0d', '#132a17'];
-
-/* ================= STATE ================= */
-let state = 'title'; // title | playing | gameover
-let score = 0, lives = 3, level = 1;
-let player, obstacles = [];
-let lastTime = 0;
-let maxRowReachedThisLife = 0;
-let invulnerableUntil = 0;
-
-function laneY(row) {
-  // row 0 = bottom (start), row NUM_LANES-1 = top (goal)
-  return H - (row + 0.5) * laneH;
-}
-
-function makePlayer() {
-  return {
-    row: 0,
-    x: W / 2,
-    targetY: laneY(0),
-    y: laneY(0),
-    size: Math.min(laneH * 0.6, W * 0.035, 34),
-    moving: false,
-    vx: 0
-  };
-}
-
-function makeObstaclesForLevel() {
-  const obs = [];
-  const dangerLanes = NUM_LANES - 2; // lanes 1..5
-  for (let lane = 1; lane <= dangerLanes; lane++) {
-    const dir = lane % 2 === 0 ? 1 : -1;
-    const baseSpeed = (60 + lane * 12 + level * 14) * dir;
-    const count = 2 + (lane % 2);
-    for (let i = 0; i < count; i++) {
-      obs.push({
-        row: lane,
-        x: (W / count) * i + Math.random() * 40,
-        w: Math.min(laneH * 1.1, 70),
-        h: laneH * 0.55,
-        speed: baseSpeed
-      });
+    function playBeep(freq, type, duration) {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
     }
-  }
-  return obs;
-}
 
-function resetRun() {
-  score = 0; lives = 3; level = 1;
-  player = makePlayer();
-  obstacles = makeObstaclesForLevel();
-  maxRowReachedThisLife = 0;
-}
-
-function respawnPlayer() {
-  player.row = 0;
-  player.x = W / 2;
-  player.y = laneY(0);
-  player.targetY = laneY(0);
-  maxRowReachedThisLife = 0;
-  invulnerableUntil = performance.now() + 1200;
-}
-
-function nextLevel() {
-  level++;
-  obstacles = makeObstaclesForLevel();
-  respawnPlayer();
-}
-
-/* ================= INPUT ================= */
-const keys = {};
-let moveCooldown = 0;
-
-function tryMoveRow(delta) {
-  if (state !== 'playing') return;
-  const now = performance.now();
-  if (now < moveCooldown) return;
-  moveCooldown = now + 140;
-
-  const newRow = player.row + delta;
-  if (newRow < 0 || newRow >= NUM_LANES) return;
-  player.row = newRow;
-  player.targetY = laneY(newRow);
-  sfxHop();
-
-  if (newRow > maxRowReachedThisLife) {
-    score += 10;
-    maxRowReachedThisLife = newRow;
-  }
-
-  if (newRow === NUM_LANES - 1) {
-    score += 50 * level;
-    sfxLevelUp();
-    setTimeout(() => { if (state === 'playing') nextLevel(); }, 500);
-  }
-}
-
-window.addEventListener('keydown', (e) => {
-  keys[e.key] = true;
-  if (['ArrowUp','w','W'].includes(e.key)) tryMoveRow(1);
-  if (['ArrowDown','s','S'].includes(e.key)) tryMoveRow(-1);
-});
-window.addEventListener('keyup', (e) => { keys[e.key] = false; });
-
-function bindHold(id, fn) {
-  const el = document.getElementById(id);
-  let iv = null;
-  const start = (e) => { e.preventDefault(); fn(); iv = setInterval(fn, 16); };
-  const stop = () => { clearInterval(iv); };
-  el.addEventListener('mousedown', start);
-  el.addEventListener('touchstart', start);
-  el.addEventListener('mouseup', stop);
-  el.addEventListener('mouseleave', stop);
-  el.addEventListener('touchend', stop);
-}
-
-bindHold('btnLeft', () => { keys['ArrowLeft'] = true; setTimeout(() => keys['ArrowLeft'] = false, 30); });
-bindHold('btnRight', () => { keys['ArrowRight'] = true; setTimeout(() => keys['ArrowRight'] = false, 30); });
-document.getElementById('btnUp').addEventListener('click', () => tryMoveRow(1));
-document.getElementById('btnDown').addEventListener('click', () => tryMoveRow(-1));
-
-/* ================= UPDATE / RENDER ================= */
-function updatePlayer(dt) {
-  // smooth vertical movement toward target lane
-  player.y += (player.targetY - player.y) * Math.min(dt * 10, 1);
-
-  // horizontal continuous movement
-  const speed = W * 0.5; // px/sec
-  let dir = 0;
-  if (keys['ArrowLeft'] || keys['a'] || keys['A']) dir -= 1;
-  if (keys['ArrowRight'] || keys['d'] || keys['D']) dir += 1;
-  player.x += dir * speed * dt;
-  player.x = Math.max(player.size, Math.min(W - player.size, player.x));
-}
-
-function updateObstacles(dt) {
-  obstacles.forEach(o => {
-    o.x += o.speed * dt;
-    if (o.speed > 0 && o.x - o.w / 2 > W) o.x = -o.w / 2;
-    if (o.speed < 0 && o.x + o.w / 2 < 0) o.x = W + o.w / 2;
-  });
-}
-
-function checkCollisions() {
-  if (performance.now() < invulnerableUntil) return;
-  const pSize = player.size;
-  for (const o of obstacles) {
-    if (o.row !== player.row) continue;
-    const oy = laneY(o.row);
-    const dx = Math.abs(player.x - o.x);
-    const dy = Math.abs(player.y - oy);
-    if (dx < (pSize + o.w) / 2.2 && dy < (pSize + o.h) / 2.2) {
-      onHit();
-      return;
+    function playKeySound() {
+        playBeep(800, 'square', 0.04);
     }
-  }
-}
 
-function onHit() {
-  lives--;
-  sfxCrash();
-  updateHud();
-  if (lives <= 0) {
-    endGame();
-  } else {
-    respawnPlayer();
-  }
-}
+    function playSuccessSound() {
+        playBeep(440, 'triangle', 0.1);
+        setTimeout(() => playBeep(660, 'triangle', 0.1), 100);
+        setTimeout(() => playBeep(880, 'triangle', 0.25), 200);
+    }
 
-function updateHud() {
-  document.getElementById('scoreVal').textContent = score;
-  document.getElementById('levelVal').textContent = level;
-  document.getElementById('livesVal').textContent = '●'.repeat(Math.max(lives,0)) + '○'.repeat(3 - Math.max(lives,0));
-}
+    function playFailSound() {
+        playBeep(180, 'sawtooth', 0.35);
+    }
 
-function drawLanes() {
-  for (let i = 0; i < NUM_LANES; i++) {
-    const y = H - (i + 1) * laneH;
-    ctx2d.fillStyle = (i === 0 || i === NUM_LANES - 1) ? '#0d2e14' : LANE_COLORS[i % 2];
-    ctx2d.fillRect(0, y, W, laneH);
-  }
-  // goal stripe
-  ctx2d.fillStyle = 'rgba(57,255,106,0.12)';
-  ctx2d.fillRect(0, 0, W, laneH * 0.15);
-  ctx2d.fillStyle = 'var(--phosphor)';
-  ctx2d.font = `${Math.max(12, laneH * 0.28)}px "Courier New", monospace`;
-  ctx2d.fillStyle = '#39ff6a';
-  ctx2d.textAlign = 'center';
-  ctx2d.globalAlpha = 0.7;
-  ctx2d.fillText('OUTPUT', W / 2, laneH * 0.65);
-  ctx2d.fillText('START', W / 2, H - laneH * 0.35);
-  ctx2d.globalAlpha = 1;
-}
+    // AVVIO GIOCO
+    function startGame() {
+        secretCode = Math.floor(Math.random() * 90) + 10;
+        attemptsLeft = 6;
+        gameOver = false;
+        
+        document.getElementById('attempts').innerText = attemptsLeft;
+        document.getElementById('terminal-log').innerHTML = "SYS_INIT: CRUELCOBOL avviato.<br>SYS_WARN: Trova la chiave di bypass (10-99).<br>";
+        document.getElementById('user-input').disabled = false;
+        document.getElementById('user-input').value = '';
+        document.getElementById('user-input').focus();
+        document.getElementById('start-btn').style.display = 'none';
+        
+        playBeep(600, 'sine', 0.1);
+    }
 
-function drawObstacles() {
-  ctx2d.font = `${Math.max(16, Math.min(laneH * 0.7, 34))}px "Courier New", monospace`;
-  ctx2d.textAlign = 'center';
-  ctx2d.textBaseline = 'middle';
-  obstacles.forEach(o => {
-    const y = laneY(o.row);
-    ctx2d.save();
-    if (o.speed < 0) { ctx2d.translate(o.x, y); ctx2d.scale(-1, 1); ctx2d.fillText('🐛', 0, 2); }
-    else { ctx2d.fillText('🐛', o.x, y + 2); }
-    ctx2d.restore();
-  });
-}
+    function logMessage(msg) {
+        const log = document.getElementById('terminal-log');
+        log.innerHTML += msg + "<br>";
+        log.scrollTop = log.scrollHeight;
+    }
 
-function drawPlayer() {
-  const blinking = performance.now() < invulnerableUntil && Math.floor(performance.now() / 100) % 2 === 0;
-  if (blinking) return;
-  ctx2d.font = `${Math.max(18, player.size * 1.4)}px "Courier New", monospace`;
-  ctx2d.textAlign = 'center';
-  ctx2d.textBaseline = 'middle';
-  ctx2d.fillText('💾', player.x, player.y + 2);
-}
+    document.getElementById('user-input').addEventListener('keydown', function(e) {
+        if (gameOver) return;
 
-function loop(ts) {
-  if (!lastTime) lastTime = ts;
-  const dt = Math.min((ts - lastTime) / 1000, 0.05);
-  lastTime = ts;
+        if (e.key >= '0' && e.key <= '9') {
+            playKeySound();
+        }
 
-  ctx2d.clearRect(0, 0, W, H);
-  drawLanes();
+        if (e.key === 'Enter') {
+            const val = parseInt(this.value);
+            this.value = '';
 
-  if (state === 'playing') {
-    updatePlayer(dt);
-    updateObstacles(dt);
-    checkCollisions();
-    drawObstacles();
-    drawPlayer();
-  } else {
-    drawObstacles();
-  }
+            if (isNaN(val) || val < 10 || val > 99) {
+                logMessage("<span style='color: #ff3333;'>ERR: INSERIRE UN NUMERO A 2 CIFRE</span>");
+                playFailSound();
+                return;
+            }
 
-  requestAnimationFrame(loop);
-}
+            attemptsLeft--;
+            document.getElementById('attempts').innerText = attemptsLeft;
 
-/* ================= GAME FLOW ================= */
-function endGame() {
-  state = 'gameover';
-  sfxGameOver();
-  document.getElementById('hud').classList.add('hidden');
-  document.getElementById('touchControls').classList.add('hidden');
-  document.getElementById('finalScore').textContent = score;
-  document.getElementById('finalLevel').textContent = level;
-  document.getElementById('gameOverScreen').classList.remove('hidden');
-}
+            if (val === secretCode) {
+                playSuccessSound();
+                logMessage(`<span style='color: #ffff33;'>&gt; ACCESS GRANTED! CODICE: ${secretCode}</span>`);
+                logMessage("STATUS: MAINFRAME SBLOCCATO.");
+                endGame();
+            } else {
+                playBeep(300, 'square', 0.08);
+                const hint = val < secretCode ? "TROPPO BASSO" : "TROPPO ALTO";
+                logMessage(`&gt; INP: ${val} - CHECK: ${hint}`);
 
-function startGame() {
-  resize();
-  resetRun();
-  state = 'playing';
-  document.getElementById('titleScreen').classList.add('hidden');
-  document.getElementById('gameOverScreen').classList.add('hidden');
-  document.getElementById('hud').classList.remove('hidden');
-  document.getElementById('touchControls').classList.remove('hidden');
-  updateHud();
-  invulnerableUntil = performance.now() + 800;
-}
+                if (attemptsLeft <= 0) {
+                    playFailSound();
+                    logMessage(`<span style='color: #ff3333;'>&gt; ACCESS DENIED! CODICE: ${secretCode}</span>`);
+                    logMessage("STATUS: SISTEMA BLOCCATO PERMANENTEMENTE.");
+                    endGame();
+                }
+            }
+        }
+    });
 
-document.getElementById('startBtn').addEventListener('click', () => { getCtx(); sfxClick(); startGame(); });
-document.getElementById('restartBtn').addEventListener('click', () => { sfxClick(); startGame(); });
+    function endGame() {
+        gameOver = true;
+        document.getElementById('user-input').disabled = true;
+        document.getElementById('start-btn').style.display = 'inline-block';
+    }
 
-document.getElementById('muteBtn').addEventListener('click', () => {
-  soundOn = !soundOn;
-  document.getElementById('muteBtn').textContent = 'SUONO: ' + (soundOn ? 'ON' : 'OFF');
-});
-
-resize();
-player = makePlayer();
-obstacles = makeObstaclesForLevel();
-requestAnimationFrame(loop);
+    startGame();
 </script>
 
 </body>
